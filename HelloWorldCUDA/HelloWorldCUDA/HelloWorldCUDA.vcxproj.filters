@@ -15,8 +15,8 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="HelloWorldCUDA.cpp">
+    <CudaCompile Include="HelloWorldCUDA.cu">
       <Filter>소스 파일</Filter>
-    </ClCompile>
+    </CudaCompile>
   </ItemGroup>
 </Project>
