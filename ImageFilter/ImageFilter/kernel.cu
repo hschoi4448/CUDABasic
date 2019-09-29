@@ -2,140 +2,202 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
-#include <opencv2/core.hpp>
-#include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
+
 #include <iostream>
-#include <stdio.h>
 
 using namespace cv;
 using namespace std;
 
-
-cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size);
-
-__global__ void addKernel(int *c, const int *a, const int *b)
+__global__ void boxBlurKernel(uchar *_dst, const uchar *_src, int rows, int cols, int _n)
 {
-    int i = threadIdx.x;
-    c[i] = a[i] + b[i];
+    // get thread idx from built-in variables
+    int x = threadIdx.x + blockDim.x * blockIdx.x;
+    int y = threadIdx.y + blockDim.y * blockIdx.y;
+
+    // set boxblur range
+    int startX = x - _n;
+    int startY = y - _n;
+    int endX = x + _n;
+    int endY = y + _n;
+
+    if (startX < 0) startX = 0;
+    if (startY < 0) startY = 0;
+    if (endX >= cols - 1) endX = cols - 1;
+    if (endY >= rows - 1) endY = rows - 1;
+
+    // calculate average
+    float sum = 0;
+    int cnt = 0;
+    for (int i = startY; i <= endY; i ++) {
+        for (int j = startX; j <= endX; j++) {
+            int idx = i * cols + j;
+            sum += _src[idx];
+            cnt ++;
+        }
+    }
+    float avg = sum / cnt;
+
+    // write result
+    _dst[y * cols + x] = (uchar)avg;
+}
+
+void boxBlur(Mat *_dst, Mat *_src, int _n)
+{
+    // device memory pointers
+    uchar *d_dst;
+    uchar *d_src;
+
+    int cols = _src->cols;
+    int rows = _src->rows;
+    int dSize = cols * rows * sizeof(uchar);
+
+    // allocate device memory
+    cudaMalloc((void**)& d_src, dSize);
+    cudaMalloc((void**)& d_dst, dSize);
+    
+    // copy src to device memroy
+    cudaMemcpy(d_src, _src->data, dSize, cudaMemcpyHostToDevice);
+
+    // prepare boxblur kernel call
+    dim3 threads(16, 16);
+    dim3 blocks((cols + 15) / 16, (rows + 15) / 16);
+
+    // boxblur kernel call
+    boxBlurKernel<<<blocks, threads >>>(d_dst, d_src, rows, cols, _n);
+
+    // copy blurred image from device memroy
+    cudaMemcpy(_dst->data, d_dst, dSize, cudaMemcpyDeviceToHost);
+
+    // release device memory
+    cudaFree(d_dst);
+    cudaFree(d_src);
+}
+
+__global__ void sobelFilterKernel(uchar* _dst, const uchar* _src, int rows, int cols)
+{
+    // get thread idx from built-in variables
+    int x = threadIdx.x + blockDim.x * blockIdx.x;
+    int y = threadIdx.y + blockDim.y * blockIdx.y;
+    
+    // prepare sobel filter
+    int startX = x - 1;
+    int startY = y - 1;
+    int endX = x + 1;
+    int endY = y + 1;
+
+    if (startX < 0) startX = 0;
+    if (startY < 0) startY = 0;
+    if (endX >= cols - 1) endX = cols - 1;
+    if (endY >= rows - 1) endY = rows - 1;
+
+    float sx[9] = {-1,  0, +1, -2,  0, +2, -1,  0, +1};
+    float sy[9] = {-1, -2, -1,  0,  0,  0, +1, +2, +1};
+
+    // calculate average
+    float gx = 0;
+    float gy = 0;
+    int cnt = 0;
+    for (int i = startY; i <= endY; i++) {
+        for (int j = startX; j <= endX; j++) {
+            int idx = i * cols + j;
+            gx += _src[idx] * sx[cnt];
+            gy += _src[idx] * sy[cnt];
+            cnt++;
+        }
+    }
+    float g = sqrtf(gx * gx + gy * gx);
+    if (g < 0) g = 0.0f;
+    if (g > 255) g = 255.0f;
+
+    // write result
+    _dst[y * cols + x] = (uchar)g;
+}
+
+void sobelFilter(Mat* _dst, Mat* _src)
+{
+    // device memory pointers
+    uchar* d_dst;
+    uchar* d_src;
+
+    int cols = _src->cols;
+    int rows = _src->rows;
+    int dSize = cols * rows * sizeof(uchar);
+
+    // allocate device memory
+    cudaMalloc((void**)& d_src, dSize);
+    cudaMalloc((void**)& d_dst, dSize);
+
+    // copy src to device memroy
+    cudaMemcpy(d_src, _src->data, dSize, cudaMemcpyHostToDevice);
+
+    // prepare boxblur kernel call
+    dim3 threads(16, 16);
+    dim3 blocks((cols + 15) / 16, (rows + 15) / 16);
+
+    // sobel filter kernel call
+    sobelFilterKernel<< <blocks, threads >> > (d_dst, d_src, rows, cols);
+
+    // copy blurred image from device memroy
+    cudaMemcpy(_dst->data, d_dst, dSize, cudaMemcpyDeviceToHost);
+
+    // release device memory
+    cudaFree(d_dst);
+    cudaFree(d_src);
 }
 
 int main()
 {
-    Mat src = imread("Lenna.png", IMREAD_COLOR);
-    if (src.empty())
-    {
+    // Read image
+    Mat src = imread("../../data/Lenna.png", IMREAD_COLOR);
+    if (src.empty()) {
         cout << "Could not open or find the image" << endl;
         return -1;
     }
+    // convert to gray 
+    cvtColor(src, src, COLOR_BGR2GRAY);
 
-    imshow("ABCD", src);
+    // create dst mat
+    Mat dst = src.clone();
 
-    waitKey(0);
+    imshow("Original", src);
+    
+    int blurSize = 10;
+    int maxBlurSize = 20;
+    int fType = 0;
+    int fNum = 2;
+    while(true)
+    {
+        if (fType == 0) boxBlur(&dst, &src, blurSize);    
+        if (fType == 1) sobelFilter(&dst, &src);
 
+        imshow("result", dst);
 
-    //const int arraySize = 5;
-    //const int a[arraySize] = { 1, 2, 3, 4, 5 };
-    //const int b[arraySize] = { 10, 20, 30, 40, 50 };
-    //int c[arraySize] = { 0 };
-
-    //// Add vectors in parallel.
-    //cudaError_t cudaStatus = addWithCuda(c, a, b, arraySize);
-    //if (cudaStatus != cudaSuccess) {
-    //    fprintf(stderr, "addWithCuda failed!");
-    //    return 1;
-    //}
-
-    //printf("{1,2,3,4,5} + {10,20,30,40,50} = {%d,%d,%d,%d,%d}\n",
-    //    c[0], c[1], c[2], c[3], c[4]);
-
-    //// cudaDeviceReset must be called before exiting in order for profiling and
-    //// tracing tools such as Nsight and Visual Profiler to show complete traces.
-    //cudaStatus = cudaDeviceReset();
-    //if (cudaStatus != cudaSuccess) {
-    //    fprintf(stderr, "cudaDeviceReset failed!");
-    //    return 1;
-    //}
-
+        int k = waitKey(0);
+        // 'esc' to finish
+        if ( k == 27 ) {
+            break;
+        }
+        // '1' to increase blur size
+        if (k == '0' + 1) {
+            fType = (fType - 1 + fNum) % fNum;
+        }
+        // '2' change filter
+        if (k == '0' + 2) {
+            fType = (fType + 1) % fNum;
+        }
+        // '3' to decrease blur size
+        if (k == '0' + 3) {
+            blurSize -= 1;
+            if (blurSize < 0) blurSize = 0;
+        }
+        // '4' to increase blur size
+        if (k == '0' + 4) {
+            blurSize += 1;
+            if (blurSize > maxBlurSize) blurSize = maxBlurSize;
+        }
+    }
+    
     return 0;
-}
-
-// Helper function for using CUDA to add vectors in parallel.
-cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size)
-{
-    int *dev_a = 0;
-    int *dev_b = 0;
-    int *dev_c = 0;
-    cudaError_t cudaStatus;
-
-    // Choose which GPU to run on, change this on a multi-GPU system.
-    cudaStatus = cudaSetDevice(0);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaSetDevice failed!  Do you have a CUDA-capable GPU installed?");
-        goto Error;
-    }
-
-    // Allocate GPU buffers for three vectors (two input, one output)    .
-    cudaStatus = cudaMalloc((void**)&dev_c, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }
-
-    cudaStatus = cudaMalloc((void**)&dev_a, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }
-
-    cudaStatus = cudaMalloc((void**)&dev_b, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }
-
-    // Copy input vectors from host memory to GPU buffers.
-    cudaStatus = cudaMemcpy(dev_a, a, size * sizeof(int), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
-
-    cudaStatus = cudaMemcpy(dev_b, b, size * sizeof(int), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
-
-    // Launch a kernel on the GPU with one thread for each element.
-    addKernel<<<1, size>>>(dev_c, dev_a, dev_b);
-
-    // Check for any errors launching the kernel
-    cudaStatus = cudaGetLastError();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-        goto Error;
-    }
-    
-    // cudaDeviceSynchronize waits for the kernel to finish, and returns
-    // any errors encountered during the launch.
-    cudaStatus = cudaDeviceSynchronize();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
-        goto Error;
-    }
-
-    // Copy output vector from GPU buffer to host memory.
-    cudaStatus = cudaMemcpy(c, dev_c, size * sizeof(int), cudaMemcpyDeviceToHost);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
-
-Error:
-    cudaFree(dev_c);
-    cudaFree(dev_a);
-    cudaFree(dev_b);
-    
-    return cudaStatus;
 }
