@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29306.81
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ImageFilter", "ImageFilter\ImageFilter.vcxproj", "{A80B6A17-B5A1-47E5-B38B-90DB3AE08354}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A80B6A17-B5A1-47E5-B38B-90DB3AE08354}.Debug|x64.ActiveCfg = Debug|x64
+		{A80B6A17-B5A1-47E5-B38B-90DB3AE08354}.Debug|x64.Build.0 = Debug|x64
+		{A80B6A17-B5A1-47E5-B38B-90DB3AE08354}.Release|x64.ActiveCfg = Release|x64
+		{A80B6A17-B5A1-47E5-B38B-90DB3AE08354}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B94EF3F1-0F63-4B78-A94F-17E09068CDC1}
+	EndGlobalSection
+EndGlobal
