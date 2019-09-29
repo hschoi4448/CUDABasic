@@ -11,8 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{A80B6A17-B5A1-47E5-B38B-90DB3AE08354}</ProjectGuid>
-    <RootNamespace>ImageFilter</RootNamespace>
+    <ProjectGuid>{1C8C8449-6223-4171-8970-CEC86A11D945}</ProjectGuid>
+    <RootNamespace>boxBlur</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
