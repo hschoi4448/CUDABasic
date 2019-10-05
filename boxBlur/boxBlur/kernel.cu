@@ -13,14 +13,14 @@ using namespace cv;
 using namespace std;
 using namespace std::chrono;
 
-__global__ void boxBlurKernel(uchar* _dst, const uchar* _src, int rows, int cols, int _n)
+__global__ void boxBlurKernel(uchar *_dst, const uchar *_src, int _rows, int _cols, int _n)
 {
     // get thread idx from built-in variables
     int x = threadIdx.x + blockDim.x * blockIdx.x;
     int y = threadIdx.y + blockDim.y * blockIdx.y;
 
     // boundary check
-    if (x > cols - 1 || y > rows - 1) return;
+    if (x > _cols - 1 || y > _rows - 1) return;
 
     // set boxblur range
     int startX = x - _n;
@@ -30,15 +30,15 @@ __global__ void boxBlurKernel(uchar* _dst, const uchar* _src, int rows, int cols
 
     if (startX < 0) startX = 0;
     if (startY < 0) startY = 0;
-    if (endX >= cols - 1) endX = cols - 1;
-    if (endY >= rows - 1) endY = rows - 1;
+    if (endX >= _cols - 1) endX = _cols - 1;
+    if (endY >= _rows - 1) endY = _rows - 1;
 
     // calculate average
     float sum = 0;
     int cnt = 0;
     for (int i = startY; i <= endY; i++) {
         for (int j = startX; j <= endX; j++) {
-            int idx = i * cols + j;
+            int idx = i * _cols + j;
             sum += _src[idx];
             cnt++;
         }
@@ -46,22 +46,22 @@ __global__ void boxBlurKernel(uchar* _dst, const uchar* _src, int rows, int cols
     float avg = sum / cnt;
 
     // write result
-    _dst[y * cols + x] = (uchar)avg;
+    _dst[y * _cols + x] = (uchar)avg;
 }
 
-void boxBlurGPU(Mat* _dst, Mat* _src, int _n)
+void boxBlurGPU(Mat *_dst, Mat *_src, int _n)
 {
     // device memory pointers
-    uchar* d_dst;
-    uchar* d_src;
+    uchar *d_dst;
+    uchar *d_src;
 
     int cols = _src->cols;
     int rows = _src->rows;
     int dSize = cols * rows * sizeof(uchar);
 
     // allocate device memory
-    cudaMalloc((void**)& d_src, dSize);
-    cudaMalloc((void**)& d_dst, dSize);
+    cudaMalloc((void **)& d_src, dSize);
+    cudaMalloc((void **)& d_dst, dSize);
 
     // copy src to device memroy
     cudaMemcpy(d_src, _src->data, dSize, cudaMemcpyHostToDevice);
@@ -81,19 +81,19 @@ void boxBlurGPU(Mat* _dst, Mat* _src, int _n)
     cudaFree(d_src);
 }
 
-void boxBlurCPU(Mat* _dst, Mat* _src, int _n)
+void boxBlurCPU(Mat *_dst, Mat *_src, int _n)
 {
     // device memory pointers
-    uchar* h_dst;
-    uchar* h_src;
+    uchar *h_dst;
+    uchar *h_src;
 
     int cols = _src->cols;
     int rows = _src->rows;
     int dSize = cols * rows * sizeof(uchar);
 
     // allocate host memory
-    h_src = (uchar*)malloc(dSize);
-    h_dst = (uchar*)malloc(dSize);
+    h_src = (uchar *)malloc(dSize);
+    h_dst = (uchar *)malloc(dSize);
 
     // copy src memory
     memcpy(h_src, _src->data, dSize);
