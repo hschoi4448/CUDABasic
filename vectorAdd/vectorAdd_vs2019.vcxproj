@@ -48,7 +48,7 @@
     <CodeAnalysisRuleAssemblies />
   </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)'=='x64'">
-    <OutDir>../../bin/win64/$(Configuration)/</OutDir>
+    <OutDir>$(Configuration)/</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -65,7 +65,7 @@
     <CudaCompile>
       <CodeGeneration>compute_30,sm_30;compute_35,sm_35;compute_37,sm_37;compute_50,sm_50;compute_52,sm_52;compute_60,sm_60;compute_61,sm_61;compute_70,sm_70;compute_75,sm_75;</CodeGeneration>
       <AdditionalOptions>-Xcompiler "/wd 4819" %(AdditionalOptions)</AdditionalOptions>
-      <Include>./;../../common/inc</Include>
+      <Include>C:\ProgramData\NVIDIA Corporation\CUDA Samples\v10.1\common\inc;%(Include)</Include>
       <Defines>WIN32</Defines>
     </CudaCompile>
   </ItemDefinitionGroup>
@@ -99,7 +99,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <CudaCompile Include="vectorAdd.cu" />
-
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
