@@ -4,6 +4,8 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+*.exp
+
 # User-specific files
 *.rsuser
 *.suo
@@ -18,16 +20,14 @@
 mono_crash.*
 
 # Build results
-[Dd]ebug/
 [Dd]ebugPublic/
-[Rr]elease/
 [Rr]eleases/
 x64/
 x86/
 [Aa][Rr][Mm]/
 [Aa][Rr][Mm]64/
 bld/
-[Bb]in/
+
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
@@ -371,7 +371,6 @@ MigrationBackup/
 # Compiled Dynamic libraries
 *.so
 *.dylib
-*.dll
 
 # Fortran module files
 *.mod
@@ -384,7 +383,6 @@ MigrationBackup/
 *.lib
 
 # Executables
-*.exe
 *.out
 *.app
 

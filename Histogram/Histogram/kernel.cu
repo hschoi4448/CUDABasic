@@ -146,12 +146,12 @@ int main()
     createHistogramNoAtomicGPU(histogramInvalidGPU, &src);
 
 
+	int eidx = 0;
     // compare histogram from CPU and GPU
     bool flag = true;
     for (int idx = 0; idx < 256; idx++) {
-        cout << "idx:" << idx << " CPU hist:" << histogramCPU[idx] << " GPU hist:" << histogramGPU[idx] << "\n";
         if (histogramCPU[idx] != histogramGPU[idx]) {
-            cout << "idx:" << idx << " CPU hist:" << histogramCPU[idx] << " GPU hist:" << histogramGPU[idx] << "\n";
+			eidx = idx;
             flag = false;
             break;
         }
@@ -161,22 +161,25 @@ int main()
     }
     else {
         cout << "CPU and GPU histogram is different\n";
+		cout << "idx:" << eidx << " CPU hist:" << histogramCPU[eidx] << " GPU hist:" << histogramInvalidGPU[eidx] << "\n";
     }
 
+	cout << "\n\n";
     // compare histogram from CPU and histogram from GPU with no atomic operation
     flag = true;
     for (int idx = 0; idx < 256; idx++) {
         if (histogramCPU[idx] != histogramInvalidGPU[idx]) {
-            cout << "idx:" << idx << " CPU hist:" << histogramCPU[idx] << " GPU hist:" << histogramInvalidGPU[idx] << "\n";
+			eidx = idx;
             flag = false;
             break;
         }
     }
     if (flag == true) {
-        cout << "CPU and GPU no atomic histogram is same\n";
+        cout << "CPU and GPU histogram without atomic is same\n";
     }
     else {
-        cout << "CPU and GPU no atomic histogram is different\n";
+        cout << "CPU and GPU histogram without atomic is different\n";
+		cout << "idx:" << eidx << " CPU hist:" << histogramCPU[eidx] << " GPU hist:" << histogramInvalidGPU[eidx] << "\n";
     }
 
     return 0;
